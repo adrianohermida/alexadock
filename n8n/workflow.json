@@ -1,0 +1,57 @@
+{
+  "name": "Alexa → Claude Code na VPS",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "alexa-claude",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "Webhook Alexa",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'ok', message: 'Tarefa recebida, executando...' }) }}",
+        "options": {}
+      },
+      "id": "respond-node",
+      "name": "Resposta Imediata",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "password",
+        "host": "SEU_IP_VPS",
+        "port": 22,
+        "username": "root",
+        "password": "SUA_SENHA_SSH",
+        "command": "su - claude -c 'export ANTHROPIC_API_KEY=SUA_CHAVE_ANTHROPIC && cd /home/claude/projetos && claude --continue --dangerously-skip-permissions -p \"{{ $('Webhook Alexa').item.json.body.task }}\" 2>&1'",
+        "options": {}
+      },
+      "id": "ssh-node",
+      "name": "SSH → Claude Code",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [720, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Alexa": {
+      "main": [[{ "node": "Resposta Imediata", "type": "main", "index": 0 }]]
+    },
+    "Resposta Imediata": {
+      "main": [[{ "node": "SSH → Claude Code", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

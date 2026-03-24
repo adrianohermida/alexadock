@@ -1,0 +1,10 @@
+{
+  "name": "alexa-claude-code",
+  "version": "1.0.0",
+  "description": "Alexa Skill para controlar Claude Code por voz",
+  "main": "lambda.js",
+  "dependencies": {
+    "ask-sdk-core": "^2.14.0",
+    "ask-sdk-model": "^1.86.0"
+  }
+}

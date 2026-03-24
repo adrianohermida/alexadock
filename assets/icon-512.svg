@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#0a0a15"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00d4ff"/>
+      <stop offset="100%" style="stop-color:#7b2fff"/>
+    </linearGradient>
+    <filter id="blur">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="15"/>
+    </filter>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="100" fill="url(#bg)"/>
+  <!-- Outer glow ring -->
+  <circle cx="256" cy="240" r="130" fill="none" stroke="url(#glow)" stroke-width="3" opacity="0.3" filter="url(#blur)"/>
+  <!-- Main circle -->
+  <circle cx="256" cy="240" r="110" fill="none" stroke="url(#glow)" stroke-width="4" opacity="0.8"/>
+  <!-- Inner arc top -->
+  <path d="M 196 200 A 70 70 0 0 1 316 200" fill="none" stroke="#00d4ff" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+  <!-- Center dot -->
+  <circle cx="256" cy="240" r="18" fill="url(#glow)" opacity="0.9"/>
+  <circle cx="256" cy="240" r="8" fill="#ffffff" opacity="0.95"/>
+  <!-- Sound waves left -->
+  <path d="M 160 220 Q 145 240 160 260" fill="none" stroke="#00d4ff" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+  <path d="M 140 205 Q 118 240 140 275" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" opacity="0.3"/>
+  <!-- Sound waves right -->
+  <path d="M 352 220 Q 367 240 352 260" fill="none" stroke="#7b2fff" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+  <path d="M 372 205 Q 394 240 372 275" fill="none" stroke="#7b2fff" stroke-width="2.5" stroke-linecap="round" opacity="0.3"/>
+  <!-- Text JARVIS -->
+  <text x="256" y="400" font-family="SF Pro Display, Helvetica Neue, Arial, sans-serif" font-size="48" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="12" opacity="0.9">JARVIS</text>
+  <!-- Subtitle -->
+  <text x="256" y="435" font-family="SF Pro Display, Helvetica Neue, Arial, sans-serif" font-size="18" font-weight="400" fill="#00d4ff" text-anchor="middle" letter-spacing="4" opacity="0.6">CLAUDE CODE</text>
+</svg>
