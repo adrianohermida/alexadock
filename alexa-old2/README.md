@@ -149,3 +149,54 @@ Este projeto está licenciado sob a licença MIT. Veja o arquivo `LICENSE` para 
 (Assinatura Eletrônica)
 **Dr. Adriano Menezes Hermida Maia**
 OAB 8894AM | 476963SP | 107048RS | 75394DF
+
+## 4. Opções de Deploy do Frontend (Dashboard Web)
+
+Para o deploy do frontend (Dashboard Web), o **Cloudflare Pages é a opção mais recomendada** devido ao suporte a funções serverless (Workers) que podem atuar como proxy para o backend FastAPI, resolvendo problemas de CORS e unificando o domínio. O GitHub Pages é uma alternativa mais simples, mas com limitações para aplicações dinâmicas.
+
+### 4.1. Deploy com Cloudflare Pages (Recomendado)
+
+O Cloudflare Pages oferece uma plataforma robusta para hospedar seu frontend React/Vite, com deploy contínuo e a capacidade de usar Cloudflare Workers para funcionalidades de backend na borda.
+
+1.  **Crie um Projeto no Cloudflare Pages:**
+    *   Acesse o painel do Cloudflare e vá para "Pages".
+    *   Conecte seu repositório GitHub (`adrianohermida/alexadock`).
+    *   Configure o projeto:
+        *   **Nome do Projeto:** `lawdesk-ai-dashboard` (ou outro de sua preferência)
+        *   **Framework Preset:** `Vite`
+        *   **Comando de Build:** `npm run build`
+        *   **Diretório de Build:** `frontend/dist`
+        *   **Diretório Raiz:** `frontend`
+
+2.  **Configuração de Variáveis de Ambiente (para Workers):**
+    *   No painel do Cloudflare Pages, vá para "Settings" -> "Environment variables".
+    *   Adicione as seguintes variáveis (necessárias para o `api-proxy.js`):
+        *   `API_HOSTNAME`: O hostname do seu backend FastAPI (ex: `api.seusistema.com` ou o IP público do seu servidor).
+        *   `API_PORT`: A porta do seu backend FastAPI (ex: `8000`).
+
+3.  **Configuração de Funções (Workers):**
+    *   O arquivo `frontend/functions/api-proxy.js` já está configurado para atuar como um proxy. Ele interceptará requisições para `/api/*` e as redirecionará para o seu backend FastAPI.
+    *   O arquivo `frontend/public/_routes.json` define essa regra de roteamento.
+    *   O arquivo `frontend/public/_redirects` garante que todas as rotas da SPA sejam tratadas corretamente.
+
+4.  **Deploy:**
+    *   O Cloudflare Pages fará o deploy automaticamente a cada push para a branch `main`.
+
+### 4.2. Deploy com GitHub Pages (Alternativa Simples)
+
+Esta opção é mais simples, mas não oferece o mesmo nível de integração com o backend via proxy ou funções serverless. É adequada se o frontend for puramente estático ou se a comunicação com o backend for feita de outra forma (ex: CORS configurado diretamente no backend para o domínio do GitHub Pages).
+
+1.  **Crie um Workflow de GitHub Actions:**
+    *   O arquivo `.github/workflows/github-pages.yml` já está configurado para automatizar o deploy.
+    *   Ele irá construir o seu projeto Vite e publicá-lo na branch `gh-pages` do seu repositório.
+
+2.  **Ative o GitHub Pages:**
+    *   No seu repositório GitHub, vá para "Settings" -> "Pages".
+    *   Em "Source", selecione a branch `gh-pages` e a pasta `/ (root)`. Salve.
+
+3.  **Deploy:**
+    *   A cada push para a branch `main`, o GitHub Actions irá rodar o workflow e atualizar seu site no GitHub Pages.
+
+**Observação:** Para que o frontend no GitHub Pages consiga se comunicar com o backend FastAPI, você precisará garantir que o backend esteja acessível publicamente e que as configurações de CORS no `main.py` do FastAPI permitam requisições do domínio do GitHub Pages (`https://adrianohermida.github.io/alexadock/`).
+
+---
