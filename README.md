@@ -1,145 +1,151 @@
-# Alexa + Claude Code 🗣️→🤖
+# Lawdesk AI Ecosystem
 
-Controle o Claude Code por voz usando a Alexa. Fala um comando, a Alexa manda pro N8N via webhook, que executa via SSH na sua VPS.
+Este repositório contém o código-fonte completo do Ecossistema Lawdesk AI, uma solução integrada para escritórios de advocacia que combina assistentes de voz (Alexa), um sistema de gestão jurídica (Lawdesk), Inteligência Artificial Generativa (RAG com orquestração de LLMs) e automação IoT.
 
-**Fluxo:**
-```
-"Alexa, abrir jarvis"
-    → "executar criar um site em react"
-        → Alexa Skill (Lambda)
-            → Webhook N8N
-                → SSH na VPS
-                    → Claude Code executa
-```
+## Estrutura do Repositório
 
-## Pré-requisitos
+O projeto está organizado nas seguintes pastas:
 
-- Conta na [Amazon Developer Console](https://developer.amazon.com/alexa/console/ask)
-- [N8N](https://n8n.io) rodando (self-hosted ou cloud)
-- VPS com SSH habilitado
-- Claude Code instalado na VPS
-- Chave de API da Anthropic
+- `frontend/`: Contém o Dashboard Web desenvolvido com Vite (React) para gerenciamento administrativo, visualização de logs e interação com a IA.
+- `backend/`: Contém a API FastAPI em Python, que serve como o coração do ecossistema, orquestrando as interações entre os diferentes componentes, gerenciando o banco de dados e a lógica de IA.
+- `alexa-skill/`: Contém o código da função AWS Lambda (Node.js) para a Alexa Skill, responsável por processar os comandos de voz e interagir com o backend.
+- `iot-esp32/`: Contém o código Arduino para o controlador ESP32, que permite a automação de dispositivos físicos (ex: ar-condicionado) via infravermelho.
+- `docs/`: Documentação adicional, diagramas e guias de implantação.
 
-## Setup passo a passo
+## Configuração e Execução
 
-### 1. Preparar a VPS
+Existem duas formas principais de configurar e executar o Ecossistema Lawdesk AI:
 
-SSH na sua VPS como root e crie um usuário dedicado (Claude Code não roda como root com `--dangerously-skip-permissions`):
+1.  **Usando Docker (Recomendado para Produção e Desenvolvimento Rápido)**: A maneira mais fácil e portátil de subir todos os serviços.
+2.  **Configuração Manual (Para Desenvolvimento Detalhado)**: Para quem deseja ter controle total sobre cada ambiente.
 
-```bash
-# Criar usuário
-useradd -m -s /bin/bash claude
+### Pré-requisitos
 
-# Instalar Claude Code
-su - claude -c "curl -fsSL https://cli.claude.ai/install.sh | sh"
+Certifique-se de ter as seguintes ferramentas instaladas:
 
-# Criar pasta de projetos
-mkdir -p /home/claude/projetos
-chown claude:claude /home/claude/projetos
+-   **Git**
+-   **Docker** e **Docker Compose** (para a opção Docker)
+-   **Python 3.9+** e `pip` (para configuração manual do backend)
+-   **Node.js 18+** e `npm` ou `yarn` (para configuração manual do frontend e Alexa Skill)
+-   **PostgreSQL** (servidor de banco de dados, se não usar Docker)
+-   **Ollama** (instalado e com o modelo `llama3` ou similar para IA local, se não usar Docker)
+-   **Conta AWS** (para Alexa Skill e Lambda)
+-   **Chave de API OpenAI**
+-   **Arduino IDE** (para o ESP32)
 
-# Testar
-su - claude -c 'export ANTHROPIC_API_KEY=sua-chave-aqui && claude --version'
-```
-
-### 2. Configurar o N8N
-
-1. Importe o arquivo `n8n-workflow.json` no seu N8N
-2. No node **SSH → Claude Code**, atualize:
-   - `host`: IP da sua VPS
-   - `username` e `password`: credenciais SSH
-   - `ANTHROPIC_API_KEY`: sua chave da Anthropic
-3. Ative o workflow
-4. Teste o webhook manualmente:
+### 1. Clonar o Repositório
 
 ```bash
-curl -X POST https://seu-n8n.com/webhook/alexa-claude \
-  -H "Content-Type: application/json" \
-  -d '{"task": "listar arquivos do projeto"}'
+git clone https://github.com/seu-usuario/lawdesk-ai-ecosystem.git
+cd lawdesk-ai-ecosystem
 ```
 
-### 3. Criar a Skill na Alexa
+### 2. Configuração e Execução com Docker (Recomendado)
 
-1. Acesse [developer.amazon.com/alexa/console/ask](https://developer.amazon.com/alexa/console/ask)
-2. Clique **Create Skill**
-3. Nome: `Jarvis` (ou o que preferir)
-4. Modelo: **Custom**
-5. Backend: **Alexa-hosted (Node.js)**
-6. Template: **Hello World**
+Esta é a forma mais rápida de colocar o sistema em funcionamento. Certifique-se de ter o Docker e o Docker Compose instalados.
 
-### 4. Interaction Model
+1.  **Crie o arquivo `.env` principal:**
+    Crie um arquivo `.env` na raiz do projeto (`lawdesk-ai-ecosystem/.env`) com suas variáveis de ambiente. Você pode usar o `.env.example` como base:
+    ```ini
+    # Variáveis para o Backend
+    DATABASE_URL=postgresql://user:password@db:5432/lawdesk_db
+    SECRET_KEY=sua_chave_secreta_muito_segura_aqui_mude_em_producao
+    OPENAI_API_KEY=sk-sua_chave_openai
+    OLLAMA_BASE_URL=http://ollama:11434
+    OLLAMA_MODEL=llama3
+    ESP32_BASE_URL=http://host.docker.internal:8001 # Ou o IP real do seu ESP32 na rede
 
-1. No menu lateral, vá em **Interaction Model → JSON Editor**
-2. Apague tudo e cole o conteúdo de `alexa/interaction-model.json`
-3. Clique **Save**
-4. Clique **Build Model** (espere ~30s)
+    # Variáveis para o Frontend (Vite)
+    VITE_API_URL=http://localhost:8000
+    ```
+    *Substitua os valores pelos seus dados. A `SECRET_KEY` deve ser uma string longa e aleatória.* A `OPENAI_API_KEY` é necessária para o AI Router usar a OpenAI. O `OLLAMA_BASE_URL` e `OLLAMA_MODEL` são para a IA local.
 
-> O `invocationName` padrão é `"jarvis"`. Mude para o que quiser.
+2.  **Inicie os serviços com Docker Compose:**
+    ```bash
+    docker-compose up --build -d
+    ```
+    Este comando irá construir as imagens, criar os contêineres para o banco de dados (PostgreSQL), backend (FastAPI), frontend (Vite/Nginx) e Ollama, e iniciá-los em segundo plano.
 
-### 5. Código Lambda
+3.  **Acessar o Dashboard:**
+    Após os serviços subirem, o Dashboard Web estará disponível em `http://localhost`.
+    O backend FastAPI estará disponível em `http://localhost:8000` (para testes de API).
 
-1. Vá na aba **Code**
-2. Abra `index.js`
-3. Apague tudo e cole o conteúdo de `alexa/lambda.js`
-4. **Importante:** atualize a variável `WEBHOOK_URL` com a URL do seu webhook N8N
-5. Clique **Save**
-6. Clique **Deploy** (espere ~15s)
+4.  **Inicializar o Banco de Dados (após o primeiro `up`):**
+    Para criar as tabelas no PostgreSQL (dentro do contêiner do backend):
+    ```bash
+    docker-compose exec backend python -c "from database import Base, engine; from models import Processo, LogEvento, Usuario; Base.metadata.create_all(bind=engine)"
+    ```
 
-### 6. Testar
+5.  **Baixar o modelo do Ollama (após o primeiro `up`):**
+    Para baixar o modelo `llama3` (ou o que você configurou) no contêiner do Ollama:
+    ```bash
+    docker-compose exec ollama ollama pull llama3
+    ```
 
-1. Vá na aba **Test**
-2. Mude o dropdown de **Off** para **Development**
-3. Digite: `abrir jarvis`
-4. Resposta: *"Jarvis ativado. O que você quer que eu faça?"*
-5. Digite: `executar criar um site em react`
-6. Resposta: *"Certo, executando: criar um site em react"*
-7. Confira no N8N se o webhook recebeu e o Claude Code executou
+### 3. Configuração e Execução Manual (Alternativa)
 
-Se funcionar no console, já funciona automaticamente na sua Alexa física (mesma conta Amazon).
+Se você preferir configurar cada componente manualmente, siga estes passos:
 
-## Estrutura do repo
+1.  **Execute o script de setup inicial:**
+    ```bash
+    chmod +x setup.sh
+    ./setup.sh
+    ```
+    Este script irá criar ambientes virtuais e instalar as dependências para o backend, frontend e alexa-skill. Ele também criará os arquivos `.env` a partir dos `.env.example` em cada pasta, que você precisará editar.
 
-```
-alexa-claude-code/
-├── README.md
-├── alexa/
-│   ├── interaction-model.json   # Model JSON (cola no JSON Editor)
-│   ├── lambda.js                # Código da Lambda (cola no index.js)
-│   └── package.json             # Dependências da Lambda
-├── n8n/
-│   └── workflow.json            # Workflow N8N (importar)
-└── assets/
-    ├── icon-108.svg             # Ícone pequeno da skill (108x108)
-    └── icon-512.svg             # Ícone grande da skill (512x512)
-```
+2.  **Configuração do Backend (Python FastAPI):**
+    Navegue até `backend/`.
+    Edite o arquivo `.env` com suas credenciais de banco de dados (PostgreSQL) e chaves de API.
+    Ative o ambiente virtual (`source venv/bin/activate`) e execute:
+    ```bash
+    python -c "from database import Base, engine; from models import Processo, LogEvento, Usuario; Base.metadata.create_all(bind=engine)"
+    uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    ```
 
-## Como funciona
+3.  **Configuração do Frontend (Vite React):**
+    Navegue até `frontend/`.
+    Edite o arquivo `.env` para apontar para o seu backend FastAPI.
+    Execute:
+    ```bash
+    npm run dev
+    ```
 
-1. **Alexa** recebe o comando de voz e extrai o texto via `ExecutarIntent` com slot `tarefa` (tipo `AMAZON.SearchQuery` — captura texto livre)
-2. **Lambda** faz POST do texto para o webhook do N8N e responde imediatamente à Alexa (timeout da Alexa é 8s)
-3. **N8N** recebe o webhook, responde 200 OK instantaneamente e executa o SSH em background
-4. **SSH** roda `claude --continue --dangerously-skip-permissions -p "comando"` como usuário não-root
-5. `--continue` mantém o contexto entre chamadas — cada comando continua a conversa anterior
+4.  **Configuração da Alexa Skill (AWS Lambda):**
+    Navegue até `alexa-skill/`.
+    Instale as dependências (`npm install`).
+    Siga as instruções detalhadas na documentação da Fase 2 para configurar a função Lambda na AWS e a Alexa Skill no console do desenvolvedor. Lembre-se de que a função Lambda precisará acessar o seu backend FastAPI, então ele deve estar publicamente acessível ou configurado em uma VPC.
 
-## Flags importantes do Claude Code
+5.  **Configuração do Controlador IoT (ESP32):**
+    Navegue até `iot-esp32/`.
+    Abra o `esp32_ir_controller.ino` na Arduino IDE.
+    Instale as bibliotecas necessárias (`WiFi`, `HTTPClient`, `IRremoteESP8266`).
+    Configure suas credenciais Wi-Fi e o URL **público** do seu backend FastAPI no código.
+    Faça o upload para o seu ESP32.
 
-| Flag | O que faz |
-|---|---|
-| `-p "texto"` | Modo não-interativo (print mode) — executa e retorna |
-| `--continue` | Continua a última conversa (mantém contexto) |
-| `--dangerously-skip-permissions` | Pula confirmações (necessário para automação) |
+## Uso do Ecossistema
 
-## Limitações
+-   **Alexa:** Use comandos de voz como "Alexa, qual o status do processo do cliente [Nome do Cliente]?", "Alexa, ligar o ar a 22 graus", "Alexa, perguntar ao Lawdesk: [Sua pergunta jurídica]".
+-   **Dashboard Web:** Acesse `http://localhost` (com Docker) ou `http://localhost:5173` (manual) para gerenciar usuários, processos, adicionar documentos à IA e visualizar logs de auditoria.
 
-- **Timeout da Alexa:** 8 segundos — por isso o N8N responde antes de executar
-- **Sem feedback de resultado:** a Alexa não espera o Claude terminar. Para receber o resultado, adicione uma notificação (Telegram, email, push) no final do workflow do N8N
-- **Não roda como root:** Claude Code bloqueia `--dangerously-skip-permissions` com root por segurança
+## Considerações de Implantação em Produção
 
-## Próximos passos
+Para um ambiente de produção, além do Docker, considere:
 
-- [ ] Adicionar notificação quando o Claude terminar (Telegram/WhatsApp/email)
-- [ ] Adicionar intent "status" para consultar se a última tarefa terminou
-- [ ] Adicionar intent "nova sessão" para iniciar conversa limpa
+-   **HTTPS:** Use HTTPS para a API FastAPI e o Dashboard Web.
+-   **Servidor WSGI:** Utilize Gunicorn ou Uvicorn com workers para o FastAPI.
+-   **Proxy Reverso:** Configure Nginx ou Apache para servir o frontend e rotear requisições para o backend.
+-   **Segurança:** Reforce as variáveis de ambiente, especialmente `SECRET_KEY`.
+-   **Domínio:** Configure um domínio próprio para a API e o Dashboard.
+-   **Escalabilidade:** Para o ChromaDB, considere uma solução de banco de dados vetorial em nuvem para alta disponibilidade e escalabilidade.
 
-## Créditos
+## Licença
 
-Criado por [@celoanders](https://instagram.com/celoia)
+Este projeto está licenciado sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
+
+---
+
+**Brasília, 26 de Março de 2026.**
+
+(Assinatura Eletrônica)
+**Dr. Adriano Menezes Hermida Maia**
+OAB 8894AM | 476963SP | 107048RS | 75394DF

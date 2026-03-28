@@ -1,0 +1,40 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "jarvis",
+      "intents": [
+        {
+          "name": "ExecutarIntent",
+          "slots": [
+            {
+              "name": "tarefa",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "executar {tarefa}",
+            "rodar {tarefa}",
+            "fazer {tarefa}",
+            "manda {tarefa}",
+            "roda {tarefa}",
+            "por favor {tarefa}",
+            "quero {tarefa}",
+            "pode {tarefa}"
+          ]
+        },
+        {
+          "name": "AMAZON.HelpIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.CancelIntent",
+          "samples": []
+        }
+      ]
+    }
+  }
+}
