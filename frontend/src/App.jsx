@@ -1,190 +1,162 @@
-import { useState, useEffect } from 'react'
-import axios from 'axios'
-import './App.css'
+import { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
+import './App.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+// Inicializar cliente Supabase
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const workersUrl = import.meta.env.VITE_WORKERS_URL;
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function App() {
-  // Estados de autenticação
-  const [token, setToken] = useState(localStorage.getItem('token'))
-  const [usuario, setUsuario] = useState(localStorage.getItem('usuario'))
-  const [loginUsername, setLoginUsername] = useState('')
-  const [loginPassword, setLoginPassword] = useState('')
-  const [loginError, setLoginError] = useState('')
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState(null);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [processos, setProcessos] = useState([]);
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Estados de registro
-  const [showRegister, setShowRegister] = useState(false)
-  const [registerUsername, setRegisterUsername] = useState('')
-  const [registerEmail, setRegisterEmail] = useState('')
-  const [registerPassword, setRegisterPassword] = useState('')
-  const [registerError, setRegisterError] = useState('')
-
-  // Estados de seção
-  const [secaoAtiva, setSecaoAtiva] = useState('dashboard')
-
-  // Estados de processos
-  const [processos, setProcessos] = useState([])
-  const [clienteNome, setClienteNome] = useState('')
-  const [processoStatus, setProcessoStatus] = useState('')
-  const [processoFase, setProcessoFase] = useState('')
-  const [processoPrazo, setProcessoPrazo] = useState('')
-  const [processoError, setProcessoError] = useState('')
-  const [processoSuccess, setProcessoSuccess] = useState('')
-
-  // Estados de IA
-  const [documentoTexto, setDocumentoTexto] = useState('')
-  const [documentoId, setDocumentoId] = useState('')
-  const [documentoError, setDocumentoError] = useState('')
-  const [documentoSuccess, setDocumentoSuccess] = useState('')
-
-  // Estados de teste de IA
-  const [iaPergunta, setIaPergunta] = useState('')
-  const [iaResposta, setIaResposta] = useState('')
-  const [iaLoading, setIaLoading] = useState(false)
-  const [iaError, setIaError] = useState('')
-
-  // Estados de logs
-  const [logs, setLogs] = useState([])
-
-  // Estados de estatísticas
-  const [stats, setStats] = useState({
-    totalProcessos: 0,
-    usuariosAtivos: 0,
-    totalLogs: 0
-  })
-
-  // Carregar dados ao fazer login
+  // Verificar autenticação ao carregar
   useEffect(() => {
-    if (token && usuario) {
-      carregarDados()
-    }
-  }, [token, usuario])
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setUser(session.user);
+        setIsLoggedIn(true);
+        await carregarDados(session.access_token);
+      }
+    };
+    checkAuth();
+  }, []);
 
-  const carregarDados = async () => {
+  // Carregar dados do usuário
+  const carregarDados = async (token) => {
     try {
-      const logsResponse = await axios.get(`${API_URL}/logs/protegido`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      setLogs(logsResponse.data)
-      setStats({
-        totalProcessos: 20, // Placeholder - seria necessário endpoint GET /processos
-        usuariosAtivos: 5,  // Placeholder
-        totalLogs: logsResponse.data.length
-      })
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error)
-    }
-  }
+      setLoading(true);
+      
+      // Buscar processos
+      const processosRes = await fetch(`${workersUrl}/processos`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (processosRes.ok) {
+        setProcessos(await processosRes.json());
+      }
 
-  // Funções de autenticação
-  const handleLogin = async (e) => {
-    e.preventDefault()
-    try {
-      const response = await axios.post(`${API_URL}/auth/login`, {
-        username: loginUsername,
-        senha: loginPassword
-      })
-      localStorage.setItem('token', response.data.access_token)
-      localStorage.setItem('usuario', response.data.usuario)
-      setToken(response.data.access_token)
-      setUsuario(response.data.usuario)
-      setLoginError('')
-      setLoginUsername('')
-      setLoginPassword('')
-    } catch (error) {
-      setLoginError(error.response?.data?.detail || 'Erro ao fazer login')
-    }
-  }
-
-  const handleRegister = async (e) => {
-    e.preventDefault()
-    try {
-      await axios.post(`${API_URL}/auth/registrar`, {
-        username: registerUsername,
-        email: registerEmail,
-        senha: registerPassword
-      })
-      setRegisterError('')
-      setShowRegister(false)
-      setRegisterUsername('')
-      setRegisterEmail('')
-      setRegisterPassword('')
-      alert('Usuário registrado com sucesso! Faça login.')
-    } catch (error) {
-      setRegisterError(error.response?.data?.detail || 'Erro ao registrar')
-    }
-  }
-
-  const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('usuario')
-    setToken(null)
-    setUsuario(null)
-    setSecaoAtiva('dashboard')
-  }
-
-  // Funções de processos
-  const handleAdicionarProcesso = async (e) => {
-    e.preventDefault()
-    try {
-      await axios.post(`${API_URL}/processo/add/protegido`, {
-        cliente: clienteNome,
-        status: processoStatus,
-        fase: processoFase,
-        prazo: processoPrazo
-      }, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      setProcessoSuccess('Processo adicionado com sucesso!')
-      setClienteNome('')
-      setProcessoStatus('')
-      setProcessoFase('')
-      setProcessoPrazo('')
-      setProcessoError('')
-      setTimeout(() => setProcessoSuccess(''), 3000)
-    } catch (error) {
-      setProcessoError(error.response?.data?.detail || 'Erro ao adicionar processo')
-    }
-  }
-
-  // Funções de IA
-  const handleAdicionarDocumento = async (e) => {
-    e.preventDefault()
-    try {
-      await axios.post(`${API_URL}/ia/adicionar_documento/protegido`, {
-        texto: documentoTexto,
-        id: documentoId || null
-      }, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      setDocumentoSuccess('Documento adicionado com sucesso!')
-      setDocumentoTexto('')
-      setDocumentoId('')
-      setDocumentoError('')
-      setTimeout(() => setDocumentoSuccess(''), 3000)
-    } catch (error) {
-      setDocumentoError(error.response?.data?.detail || 'Erro ao adicionar documento')
-    }
-  }
-
-  const handleTestarIA = async (e) => {
-    e.preventDefault()
-    setIaLoading(true)
-    setIaError('')
-    try {
-      const response = await axios.post(`${API_URL}/ia/perguntar`, {
-        pergunta: iaPergunta
-      })
-      setIaResposta(response.data.resposta)
-    } catch (error) {
-      setIaError(error.response?.data?.detail || 'Erro ao processar pergunta')
+      // Buscar logs
+      const logsRes = await fetch(`${workersUrl}/logs`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (logsRes.ok) {
+        setLogs(await logsRes.json());
+      }
+    } catch (err) {
+      setError('Erro ao carregar dados');
     } finally {
-      setIaLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  // Renderização de tela de login
-  if (!token) {
+  // Login
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    const email = e.target.email.value;
+    const password = e.target.password.value;
+
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      setUser(data.user);
+      setIsLoggedIn(true);
+      await carregarDados(data.session.access_token);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Logout
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setIsLoggedIn(false);
+    setUser(null);
+    setProcessos([]);
+    setLogs([]);
+  };
+
+  // Adicionar processo
+  const handleAddProcesso = async (e) => {
+    e.preventDefault();
+    const { data: { session } } = await supabase.auth.getSession();
+
+    try {
+      setLoading(true);
+      const res = await fetch(`${workersUrl}/processos`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          numero_processo: e.target.numero.value,
+          cliente_nome: e.target.cliente.value,
+          descricao: e.target.descricao.value,
+        }),
+      });
+
+      if (res.ok) {
+        const novoProcesso = await res.json();
+        setProcessos([...processos, novoProcesso]);
+        e.target.reset();
+        setError(null);
+      }
+    } catch (err) {
+      setError('Erro ao adicionar processo');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Consultar IA
+  const handleConsultarIA = async (e) => {
+    e.preventDefault();
+    const { data: { session } } = await supabase.auth.getSession();
+
+    try {
+      setLoading(true);
+      const res = await fetch(`${workersUrl}/ia/consultar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          pergunta: e.target.pergunta.value,
+          sensibilidade: e.target.sensibilidade.value,
+        }),
+      });
+
+      if (res.ok) {
+        const { resposta } = await res.json();
+        alert(`Resposta da IA:\n\n${resposta}`);
+        e.target.reset();
+      }
+    } catch (err) {
+      setError('Erro ao consultar IA');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isLoggedIn) {
     return (
       <div className="login-container">
         <div className="login-box">
@@ -193,327 +165,183 @@ export default function App() {
             <p className="subtitle">Ecossistema Jurídico Inteligente</p>
           </div>
 
-          {!showRegister ? (
-            <>
-              {loginError && <div className="alert alert-error">{loginError}</div>}
-              <form onSubmit={handleLogin}>
-                <div className="form-group">
-                  <label htmlFor="username">Usuário:</label>
-                  <input
-                    id="username"
-                    type="text"
-                    value={loginUsername}
-                    onChange={(e) => setLoginUsername(e.target.value)}
-                    placeholder="Digite seu usuário"
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="password">Senha:</label>
-                  <input
-                    id="password"
-                    type="password"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    placeholder="Digite sua senha"
-                    required
-                  />
-                </div>
-                <button type="submit" className="btn btn-primary">Entrar</button>
-              </form>
-              <div className="login-footer">
-                <p>Não tem conta? <button type="button" className="link-btn" onClick={() => setShowRegister(true)}>Registre-se aqui</button></p>
-              </div>
-            </>
-          ) : (
-            <>
-              {registerError && <div className="alert alert-error">{registerError}</div>}
-              <form onSubmit={handleRegister}>
-                <div className="form-group">
-                  <label htmlFor="reg-username">Usuário:</label>
-                  <input
-                    id="reg-username"
-                    type="text"
-                    value={registerUsername}
-                    onChange={(e) => setRegisterUsername(e.target.value)}
-                    placeholder="Escolha um usuário"
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="reg-email">Email:</label>
-                  <input
-                    id="reg-email"
-                    type="email"
-                    value={registerEmail}
-                    onChange={(e) => setRegisterEmail(e.target.value)}
-                    placeholder="Digite seu email"
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="reg-password">Senha:</label>
-                  <input
-                    id="reg-password"
-                    type="password"
-                    value={registerPassword}
-                    onChange={(e) => setRegisterPassword(e.target.value)}
-                    placeholder="Escolha uma senha"
-                    required
-                  />
-                </div>
-                <button type="submit" className="btn btn-primary">Registrar</button>
-              </form>
-              <div className="login-footer">
-                <p>Já tem conta? <button type="button" className="link-btn" onClick={() => setShowRegister(false)}>Faça login</button></p>
-              </div>
-            </>
-          )}
+          {error && <div className="alert alert-error">{error}</div>}
+
+          <form onSubmit={handleLogin}>
+            <div className="form-group">
+              <label>Email</label>
+              <input type="email" name="email" required />
+            </div>
+            <div className="form-group">
+              <label>Senha</label>
+              <input type="password" name="password" required />
+            </div>
+            <button type="submit" className="btn" disabled={loading}>
+              {loading ? 'Entrando...' : 'Entrar'}
+            </button>
+          </form>
         </div>
       </div>
-    )
+    );
   }
 
-  // Renderização do dashboard
   return (
     <div className="dashboard-container">
-      <aside className="sidebar">
+      <div className="sidebar">
         <div className="sidebar-header">
           <h1>Lawdesk AI</h1>
         </div>
-        <nav className="sidebar-nav">
-          <button
-            className={`nav-item ${secaoAtiva === 'dashboard' ? 'active' : ''}`}
-            onClick={() => setSecaoAtiva('dashboard')}
-          >
-            📊 Dashboard
-          </button>
-          <button
-            className={`nav-item ${secaoAtiva === 'processos' ? 'active' : ''}`}
-            onClick={() => setSecaoAtiva('processos')}
-          >
-            📋 Processos
-          </button>
-          <button
-            className={`nav-item ${secaoAtiva === 'ia' ? 'active' : ''}`}
-            onClick={() => setSecaoAtiva('ia')}
-          >
-            🤖 IA & RAG
-          </button>
-          <button
-            className={`nav-item ${secaoAtiva === 'logs' ? 'active' : ''}`}
-            onClick={() => setSecaoAtiva('logs')}
-          >
-            📝 Logs
-          </button>
-        </nav>
-      </aside>
+        <button
+          className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
+          onClick={() => setActiveTab('dashboard')}
+        >
+          📊 Dashboard
+        </button>
+        <button
+          className={`nav-item ${activeTab === 'processos' ? 'active' : ''}`}
+          onClick={() => setActiveTab('processos')}
+        >
+          📁 Processos
+        </button>
+        <button
+          className={`nav-item ${activeTab === 'ia' ? 'active' : ''}`}
+          onClick={() => setActiveTab('ia')}
+        >
+          🤖 IA & RAG
+        </button>
+        <button
+          className={`nav-item ${activeTab === 'logs' ? 'active' : ''}`}
+          onClick={() => setActiveTab('logs')}
+        >
+          📋 Logs
+        </button>
+        <button className="nav-item" onClick={handleLogout}>
+          🚪 Sair
+        </button>
+      </div>
 
-      <main className="main-content">
-        <header className="header">
-          <h2>Lawdesk AI - Dashboard Administrativo</h2>
-          <div className="user-section">
-            <span className="user-name">{usuario}</span>
-            <button className="btn btn-logout" onClick={handleLogout}>Sair</button>
-          </div>
-        </header>
-
-        <div className="content">
-          {/* Dashboard */}
-          {secaoAtiva === 'dashboard' && (
-            <section className="section">
-              <h3>Dashboard</h3>
-              <div className="stats-grid">
-                <div className="stat-card">
-                  <div className="stat-icon">📋</div>
-                  <div className="stat-content">
-                    <h4>Total de Processos</h4>
-                    <p className="stat-number">{stats.totalProcessos}</p>
-                  </div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-icon">👥</div>
-                  <div className="stat-content">
-                    <h4>Usuários Ativos</h4>
-                    <p className="stat-number">{stats.usuariosAtivos}</p>
-                  </div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-icon">📊</div>
-                  <div className="stat-content">
-                    <h4>Logs Registrados</h4>
-                    <p className="stat-number">{stats.totalLogs}</p>
-                  </div>
-                </div>
-              </div>
-            </section>
-          )}
-
-          {/* Processos */}
-          {secaoAtiva === 'processos' && (
-            <section className="section">
-              <h3>Gerenciar Processos</h3>
-              <div className="card">
-                <h4>Adicionar Novo Processo</h4>
-                {processoError && <div className="alert alert-error">{processoError}</div>}
-                {processoSuccess && <div className="alert alert-success">{processoSuccess}</div>}
-                <form onSubmit={handleAdicionarProcesso}>
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label htmlFor="cliente">Nome do Cliente:</label>
-                      <input
-                        id="cliente"
-                        type="text"
-                        value={clienteNome}
-                        onChange={(e) => setClienteNome(e.target.value)}
-                        placeholder="Ex: João Silva"
-                        required
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label htmlFor="status">Status:</label>
-                      <select
-                        id="status"
-                        value={processoStatus}
-                        onChange={(e) => setProcessoStatus(e.target.value)}
-                        required
-                      >
-                        <option value="">Selecione um status</option>
-                        <option value="Aberto">Aberto</option>
-                        <option value="Em Andamento">Em Andamento</option>
-                        <option value="Concluído">Concluído</option>
-                        <option value="Arquivado">Arquivado</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label htmlFor="fase">Fase:</label>
-                      <input
-                        id="fase"
-                        type="text"
-                        value={processoFase}
-                        onChange={(e) => setProcessoFase(e.target.value)}
-                        placeholder="Ex: Contestação"
-                        required
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label htmlFor="prazo">Prazo:</label>
-                      <input
-                        id="prazo"
-                        type="text"
-                        value={processoPrazo}
-                        onChange={(e) => setProcessoPrazo(e.target.value)}
-                        placeholder="Ex: 15 dias"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <button type="submit" className="btn btn-primary">Adicionar Processo</button>
-                </form>
-              </div>
-            </section>
-          )}
-
-          {/* IA & RAG */}
-          {secaoAtiva === 'ia' && (
-            <section className="section">
-              <h3>IA & RAG</h3>
-              
-              <div className="card">
-                <h4>Adicionar Documento ao Banco Vetorial</h4>
-                {documentoError && <div className="alert alert-error">{documentoError}</div>}
-                {documentoSuccess && <div className="alert alert-success">{documentoSuccess}</div>}
-                <form onSubmit={handleAdicionarDocumento}>
-                  <div className="form-group">
-                    <label htmlFor="doc-texto">Texto do Documento:</label>
-                    <textarea
-                      id="doc-texto"
-                      value={documentoTexto}
-                      onChange={(e) => setDocumentoTexto(e.target.value)}
-                      placeholder="Cole aqui o texto jurídico, jurisprudência ou petição modelo..."
-                      rows="6"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="doc-id">ID do Documento (opcional):</label>
-                    <input
-                      id="doc-id"
-                      type="text"
-                      value={documentoId}
-                      onChange={(e) => setDocumentoId(e.target.value)}
-                      placeholder="Ex: doc_contestacao_1"
-                    />
-                  </div>
-                  <button type="submit" className="btn btn-primary">Adicionar Documento</button>
-                </form>
-              </div>
-
-              <div className="card">
-                <h4>Testar Consulta à IA</h4>
-                {iaError && <div className="alert alert-error">{iaError}</div>}
-                <form onSubmit={handleTestarIA}>
-                  <div className="form-group">
-                    <label htmlFor="pergunta">Pergunta Jurídica:</label>
-                    <textarea
-                      id="pergunta"
-                      value={iaPergunta}
-                      onChange={(e) => setIaPergunta(e.target.value)}
-                      placeholder="Faça uma pergunta jurídica..."
-                      rows="4"
-                      required
-                    />
-                  </div>
-                  <button type="submit" className="btn btn-primary" disabled={iaLoading}>
-                    {iaLoading ? 'Processando...' : 'Enviar Pergunta'}
-                  </button>
-                </form>
-                {iaResposta && (
-                  <div className="resposta-box">
-                    <h5>Resposta da IA:</h5>
-                    <p>{iaResposta}</p>
-                  </div>
-                )}
-              </div>
-            </section>
-          )}
-
-          {/* Logs */}
-          {secaoAtiva === 'logs' && (
-            <section className="section">
-              <h3>Logs de Auditoria</h3>
-              <div className="card">
-                {logs.length > 0 ? (
-                  <table className="logs-table">
-                    <thead>
-                      <tr>
-                        <th>Data/Hora</th>
-                        <th>Usuário</th>
-                        <th>Ação</th>
-                        <th>Detalhes</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {logs.map((log) => (
-                        <tr key={log.id}>
-                          <td>{new Date(log.timestamp).toLocaleString('pt-BR')}</td>
-                          <td>{log.usuario || 'Sistema'}</td>
-                          <td>{log.acao}</td>
-                          <td>{log.detalhes || '-'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <p>Nenhum log registrado ainda.</p>
-                )}
-              </div>
-            </section>
-          )}
+      <div className="main-content">
+        <div className="header">
+          <h2>Bem-vindo, {user?.email}</h2>
         </div>
-      </main>
+
+        {error && <div className="alert alert-error">{error}</div>}
+
+        {/* Dashboard */}
+        {activeTab === 'dashboard' && (
+          <div className="content-section">
+            <h3>Dashboard</h3>
+            <div className="stats-grid">
+              <div className="stat-card">
+                <div className="stat-value">{processos.length}</div>
+                <div className="stat-label">Processos</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-value">{logs.length}</div>
+                <div className="stat-label">Ações Registradas</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Processos */}
+        {activeTab === 'processos' && (
+          <div className="content-section">
+            <h3>Gerenciar Processos</h3>
+            <form onSubmit={handleAddProcesso} className="form-section">
+              <div className="form-group">
+                <label>Número do Processo</label>
+                <input type="text" name="numero" required />
+              </div>
+              <div className="form-group">
+                <label>Nome do Cliente</label>
+                <input type="text" name="cliente" required />
+              </div>
+              <div className="form-group">
+                <label>Descrição</label>
+                <textarea name="descricao" rows="4"></textarea>
+              </div>
+              <button type="submit" className="btn" disabled={loading}>
+                {loading ? 'Adicionando...' : 'Adicionar Processo'}
+              </button>
+            </form>
+
+            <div className="table-section">
+              <h4>Processos Cadastrados</h4>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Número</th>
+                    <th>Cliente</th>
+                    <th>Status</th>
+                    <th>Data</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {processos.map((p) => (
+                    <tr key={p.id}>
+                      <td>{p.numero_processo}</td>
+                      <td>{p.cliente_nome}</td>
+                      <td>{p.status}</td>
+                      <td>{new Date(p.criado_em).toLocaleDateString('pt-BR')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* IA & RAG */}
+        {activeTab === 'ia' && (
+          <div className="content-section">
+            <h3>Consultar IA Jurídica</h3>
+            <form onSubmit={handleConsultarIA} className="form-section">
+              <div className="form-group">
+                <label>Pergunta Jurídica</label>
+                <textarea name="pergunta" rows="4" placeholder="Faça sua pergunta..." required></textarea>
+              </div>
+              <div className="form-group">
+                <label>Nível de Sensibilidade</label>
+                <select name="sensibilidade">
+                  <option value="publico">Público (OpenAI)</option>
+                  <option value="sigiloso">Sigiloso (Ollama Local)</option>
+                </select>
+              </div>
+              <button type="submit" className="btn" disabled={loading}>
+                {loading ? 'Processando...' : 'Consultar IA'}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Logs */}
+        {activeTab === 'logs' && (
+          <div className="content-section">
+            <h3>Auditoria de Logs</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Ação</th>
+                  <th>Descrição</th>
+                  <th>Sensibilidade</th>
+                  <th>Data</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map((log) => (
+                  <tr key={log.id}>
+                    <td>{log.acao}</td>
+                    <td>{log.descricao}</td>
+                    <td>{log.dados_sensibilidade}</td>
+                    <td>{new Date(log.criado_em).toLocaleDateString('pt-BR')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
-  )
+  );
 }

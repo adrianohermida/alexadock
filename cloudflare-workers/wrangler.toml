@@ -1,0 +1,28 @@
+name = "lawdesk-ai-workers"
+main = "src/index.ts"
+compatibility_date = "2024-03-27"
+
+# Variáveis de ambiente
+[env.production]
+vars = { ENVIRONMENT = "production" }
+
+[env.development]
+vars = { ENVIRONMENT = "development" }
+
+# Secrets (Configure via `wrangler secret put`)
+# - SUPABASE_URL
+# - SUPABASE_ANON_KEY
+# - OPENAI_API_KEY
+# - OLLAMA_BASE_URL
+# - OLLAMA_MODEL
+
+# Configuração de build
+[build]
+command = "npm run build"
+cwd = "./"
+watch_paths = ["src/**/*.ts"]
+
+# Configuração de upload
+[upload]
+format = "modules"
+main = "./dist/index.js"
